@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Agent Mesh — Flow Diagram</title>
+<style>
+  :root {
+    --bg: #0f1117; --panel: #1a1d27; --line: #3d4257;
+    --orch: #7c5cff; --research: #2dd4bf; --scout: #f59e0b; --admin: #60a5fa;
+    --store: #94a3b8; --text: #e5e7eb;
+  }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
+  h1 { text-align: center; font-size: 20px; padding: 18px 0 4px; }
+  p.sub { text-align: center; color: #9ca3af; margin: 0 0 10px; }
+  #canvas { position: relative; width: 1060px; height: 640px; margin: 0 auto; }
+  svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .node {
+    position: absolute; width: 200px; padding: 12px 14px; border-radius: 10px;
+    background: var(--panel); border: 2px solid var(--line); box-sizing: border-box;
+    transition: transform .15s, box-shadow .15s; cursor: default;
+  }
+  .node:hover { transform: translateY(-3px); box-shadow: 0 6px 18px rgba(0,0,0,.5); }
+  .node b { display: block; margin-bottom: 4px; font-size: 14px; }
+  .node small { color: #9ca3af; }
+  .badge { display:inline-block; font-size:10px; padding:1px 7px; border-radius:99px; margin-bottom:6px; color:#0f1117; font-weight:700; }
+  .legend { display:flex; gap:18px; justify-content:center; padding:8px 0 24px; color:#9ca3af; font-size:12px; }
+  .dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:5px; vertical-align:-1px; }
+  path.edge { fill:none; stroke:var(--line); stroke-width:2; marker-end:url(#arrow); }
+  path.loop { stroke:var(--scout); stroke-dasharray:6 5; }
+  text.elabel { fill:#9ca3af; font-size:11px; }
+</style>
+</head>
+<body>
+<h1>Multi-Agent Orchestration Mesh (OpenHands SDK)</h1>
+<p class="sub">Orchestrator delegates via TaskToolSet · shared memory + RAG store · feedback loop re-weights feed sources</p>
+<div id="canvas">
+  <svg id="edges">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#5b6178"/>
+      </marker>
+    </defs>
+  </svg>
+</div>
+<div class="legend">
+  <span><span class="dot" style="background:var(--orch)"></span>Orchestrator</span>
+  <span><span class="dot" style="background:var(--research)"></span>Researcher</span>
+  <span><span class="dot" style="background:var(--scout)"></span>Scout</span>
+  <span><span class="dot" style="background:var(--admin)"></span>GitHub Admin</span>
+  <span><span class="dot" style="background:var(--store)"></span>Storage</span>
+  <span>⟲ dashed = feedback loop</span>
+</div>
+<script>
+const nodes = [
+  { id:'cli',    x:430, y:10,  color:'var(--orch)',    tag:'ENTRY',   title:'CLI (agent_mesh.py)', desc:'run / research / scout / admin / resume · env validation · logging' },
+  { id:'orch',   x:430, y:120, color:'var(--orch)',    tag:'AGENT',   title:'Orchestrator', desc:'TaskToolSet + TaskTracker · persistent Conversation · concurrency 2' },
+  { id:'rss',    x:90,  y:270, color:'var(--research)',tag:'AGENT',   title:'RSS Researcher', desc:'FetchFeedsTool · RagQueryTool · ScoreItemTool · 4 feed focus areas' },
+  { id:'scout',  x:430, y:290, color:'var(--scout)',   tag:'AGENT',   title:'Monetization Scout', desc:'RagQuery + Terminal/FileEditor · license & activity study · reports' },
+  { id:'admin',  x:770, y:270, color:'var(--admin)',   tag:'AGENT',   title:'GitHub Admin', desc:'GitHub MCP + fetch MCP · repos, Pages, runners · read-safe guardrails' },
+  { id:'rag',    x:90,  y:450, color:'var(--store)',   tag:'STORE',   title:'RAG Store (SQLite FTS5)', desc:'items + full-text index · rank = fts × weight × recency' },
+  { id:'mem',    x:430, y:470, color:'var(--store)',   tag:'STORE',   title:'Shared Memory (memory.json)', desc:'source weights · scout verdicts · admin inventory' },
+  { id:'out',    x:770, y:450, color:'var(--store)',   tag:'OUTPUT',  title:'Reports + Digest', desc:'markdown opportunity reports · optional commit via GitHub Admin' },
+];
+const edges = [
+  ['cli','orch',''], ['orch','rss','1. research'], ['orch','scout','2. scout'], ['orch','admin','3. publish'],
+  ['rss','rag','index'], ['rag','scout','top-k items'], ['scout','out','reports'],
+  ['scout','mem','verdicts', true], ['mem','rss','source weights ⟲', true],
+  ['admin','out','digest commit'],
+];
+const canvas = document.getElementById('canvas');
+const svg = document.getElementById('edges');
+const pos = {};
+for (const n of nodes) {
+  const el = document.createElement('div');
+  el.className = 'node';
+  el.style.left = n.x + 'px'; el.style.top = n.y + 'px'; el.style.borderColor = n.color;
+  el.innerHTML = `<span class="badge" style="background:${n.color}">${n.tag}</span><b>${n.title}</b><small>${n.desc}</small>`;
+  canvas.appendChild(el);
+  pos[n.id] = { x: n.x, y: n.y, w: 200, h: el.offsetHeight };
+}
+function anchor(a, b) {
+  const ca = { x: a.x + a.w/2, y: a.y + a.h/2 }, cb = { x: b.x + b.w/2, y: b.y + b.h/2 };
+  const dx = cb.x - ca.x, dy = cb.y - ca.y;
+  if (Math.abs(dy) > Math.abs(dx)) {
+    return [{ x: ca.x, y: dy > 0 ? a.y + a.h : a.y }, { x: cb.x, y: dy > 0 ? b.y : b.y + b.h }];
+  }
+  return [{ x: dx > 0 ? a.x + a.w : a.x, y: ca.y }, { x: dx > 0 ? b.x : b.x + b.w, y: cb.y }];
+}
+for (const [from, to, label, loop] of edges) {
+  const [p1, p2] = anchor(pos[from], pos[to]);
+  const mx = (p1.x + p2.x)/2, my = (p1.y + p2.y)/2;
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', `M${p1.x},${p1.y} C${p1.x},${my} ${p2.x},${my} ${p2.x},${p2.y}`);
+  path.setAttribute('class', 'edge' + (loop ? ' loop' : ''));
+  svg.appendChild(path);
+  if (label) {
+    const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    t.setAttribute('x', mx + 6); t.setAttribute('y', my - 4); t.setAttribute('class', 'elabel');
+    t.textContent = label;
+    svg.appendChild(t);
+  }
+}
+</script>
+</body>
+</html>
